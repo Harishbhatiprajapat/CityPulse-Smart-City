@@ -7,6 +7,7 @@ import {
   Car,
   ShieldAlert,
   ArrowRight,
+  Compass,
 } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { NavBar } from '@/components/NavBar';
@@ -43,10 +44,10 @@ import { AccountPage } from '@/pages/AccountPage';
 import { HistoryPage } from '@/pages/HistoryPage';
 import { AboutPage } from '@/pages/AboutPage';
 
-// Services
 import { fetchWeatherData, buildZonesFromWeather, buildReplayData } from '@/lib/weatherApi';
 import { fetchComprehensiveWeather, fetchAirQuality } from '@/services/weatherService';
 import { fetchCivicAlerts } from '@/services/alertService';
+import { searchNearbyPOIs } from '@/services/geoService';
 import { supabase } from '@/lib/supabase';
 import type {
   Zone,
@@ -58,6 +59,8 @@ import type {
   AirQualityData,
   CivicAlert,
   UserSettings,
+  POICategory,
+  POIPlace,
 } from '@/types';
 
 const defaultCity: CityInfo = {
@@ -138,6 +141,12 @@ function AppContent() {
   const [selectedZoneId, setSelectedZoneId] = useState<number | null>(1);
   const [searchFocused, setSearchFocused] = useState(false);
 
+  // Overview Infrastructure Shortcuts state (Section 5)
+  const [overviewCategory, setOverviewCategory] = useState<POICategory | null>(null);
+  const [overviewPOIs, setOverviewPOIs] = useState<POIPlace[]>([]);
+  const [overviewLoadingPOIs, setOverviewLoadingPOIs] = useState(false);
+  const [selectedOverviewPOI, setSelectedOverviewPOI] = useState<POIPlace | null>(null);
+
   const searchRef = useRef<HTMLDivElement>(null);
   const currentCityRef = useRef<CityInfo>(defaultCity);
   currentCityRef.current = currentCity;
@@ -176,6 +185,9 @@ function AppContent() {
       setLiveWeather(wData);
       setLiveAqi(aqiData);
       setIncidents(getCivicIncidents(city.name));
+      setOverviewCategory(null);
+      setOverviewPOIs([]);
+      setSelectedOverviewPOI(null);
 
       // Fetch official civic bulletins
       if (wData) {
@@ -308,6 +320,33 @@ function AppContent() {
     setRouteDestination({ name: destName, lat, lng });
     setCurrentPage('routes');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function handleSelectOverviewCategory(cat: POICategory) {
+    if (overviewCategory === cat) {
+      setOverviewCategory(null);
+      setOverviewPOIs([]);
+      setSelectedOverviewPOI(null);
+      return;
+    }
+
+    setOverviewCategory(cat);
+    setSelectedOverviewPOI(null);
+    setOverviewLoadingPOIs(true);
+    try {
+      const places = await searchNearbyPOIs(cat, currentCity.latitude, currentCity.longitude, 6);
+      setOverviewPOIs(places);
+    } catch {
+      setOverviewPOIs([]);
+    } finally {
+      setOverviewLoadingPOIs(false);
+    }
+  }
+
+  function handleClearOverviewCategory() {
+    setOverviewCategory(null);
+    setOverviewPOIs([]);
+    setSelectedOverviewPOI(null);
   }
 
   const selectedZone = zones.find((z) => z.id === selectedZoneId) ?? zones[0];
@@ -594,27 +633,57 @@ function AppContent() {
                   </div>
                 </div>
 
-                {/* Quick Services Shortcut Chips */}
-                <div className="bg-white dark:bg-citynavy-card border border-slate-200 dark:border-citynavy-border rounded-xl p-3 flex items-center gap-2 overflow-x-auto scrollbar-none text-xs">
-                  <span className="font-semibold text-slate-400 dark:text-citynavy-muted whitespace-nowrap pl-1">
-                    Quick Infrastructure Lookups:
-                  </span>
-                  {[
-                    { label: '🏥 Nearby Hospitals', cat: 'hospitals' },
-                    { label: '👮 Police Stations', cat: 'police' },
-                    { label: '🏫 Schools & Colleges', cat: 'schools' },
-                    { label: '🚌 Bus & Rail Hubs', cat: 'transit' },
-                    { label: '💊 Pharmacies', cat: 'pharmacies' },
-                    { label: '🌳 Public Parks', cat: 'parks' },
-                  ].map((chip) => (
+                {/* Quick Services Shortcut Chips (Section 5) */}
+                <div className="bg-white dark:bg-citynavy-card border border-slate-200 dark:border-citynavy-border rounded-xl p-3 flex items-center justify-between gap-3 overflow-x-auto scrollbar-none text-xs">
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+                    <span className="font-semibold text-slate-400 dark:text-citynavy-muted whitespace-nowrap pl-1">
+                      Quick Infrastructure Lookups:
+                    </span>
+                    {[
+                      { label: '🏥 Nearby Hospitals', cat: 'hospitals' as POICategory },
+                      { label: '👮 Police Stations', cat: 'police' as POICategory },
+                      { label: '🏫 Schools & Colleges', cat: 'schools' as POICategory },
+                      { label: '🚌 Bus & Rail Hubs', cat: 'bus_stations' as POICategory },
+                      { label: '💊 Pharmacies', cat: 'pharmacies' as POICategory },
+                      { label: '🌳 Public Parks', cat: 'parks' as POICategory },
+                    ].map((chip) => {
+                      const isActive = overviewCategory === chip.cat;
+                      return (
+                        <button
+                          key={chip.cat}
+                          onClick={() => handleSelectOverviewCategory(chip.cat)}
+                          className={`px-2.5 py-1 rounded-lg font-medium whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                            isActive
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : 'bg-slate-100 dark:bg-citynavy-secondary hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <span>{chip.label}</span>
+                          {isActive && overviewLoadingPOIs && (
+                            <Loader2 className="w-3 h-3 animate-spin text-white" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {overviewCategory && (
+                      <button
+                        onClick={handleClearOverviewCategory}
+                        className="text-xs text-red-500 hover:text-red-700 font-semibold whitespace-nowrap flex items-center gap-1 pl-2 border-l border-slate-200 dark:border-citynavy-border"
+                      >
+                        <span>✕ Clear Filter</span>
+                      </button>
+                    )}
                     <button
-                      key={chip.cat}
                       onClick={() => handleNavigate('explore')}
-                      className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-citynavy-secondary hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium whitespace-nowrap transition-colors"
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs whitespace-nowrap transition-colors flex items-center gap-1"
                     >
-                      {chip.label}
+                      <Compass className="w-3.5 h-3.5" />
+                      <span>Explore Nearby</span>
                     </button>
-                  ))}
+                  </div>
                 </div>
 
                 {/* Live GIS Zone Map */}
@@ -624,8 +693,33 @@ function AppContent() {
                   onSelectZone={handleToggleZone}
                   cityLabel={currentCity.label}
                   cityCoords={{ lat: currentCity.latitude, lng: currentCity.longitude }}
+                  poiPlaces={overviewPOIs}
+                  selectedPOI={selectedOverviewPOI}
+                  onSelectPOI={setSelectedOverviewPOI}
+                  activeInfrastructureCategory={overviewCategory}
+                  onClearCategory={handleClearOverviewCategory}
+                  onPlanRouteTo={handlePlanRouteTo}
                   tomtomKey={settings.tomtomApiKey}
-                  heightClass="h-[440px] sm:h-[500px]"
+                  liveWeather={liveWeather}
+                  liveAqi={liveAqi}
+                  activeAlerts={activeAlerts}
+                  onSimulateAlert={() => {
+                    const testAlert: CivicAlert = {
+                      id: `sim_alert_${Date.now()}`,
+                      event: 'Simulated Public Safety Warning',
+                      headline: `Active civic test alert dispatched for ${currentCity.name}`,
+                      description: 'Simulated alert verification scenario. Municipal safety protocols triggered for testing.',
+                      severity: 'critical',
+                      effective: new Date().toISOString(),
+                      source: 'CityPulse Emergency Simulation Engine',
+                      areaDesc: currentCity.label,
+                      category: 'public_safety',
+                      coordinates: { lat: currentCity.latitude, lng: currentCity.longitude },
+                    };
+                    setActiveAlerts((prev) => [testAlert, ...prev]);
+                  }}
+                  onOpenAssistant={() => handleNavigate('ai')}
+                  heightClass="h-[480px] sm:h-[560px]"
                 />
 
                 {/* Zone Cards Grid */}

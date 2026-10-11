@@ -30,39 +30,83 @@ export interface POICategoryMeta {
   label: string;
   osmQuery: string;
   osmClass: string;
+  osmKey?: string;
+  osmVal?: string;
   iconName: string;
   color: string;
   emoji: string;
 }
 
 /**
- * 12 Exact Categories defined by user specification:
- * - Hospitals: Red (#EF4444)
- * - Police stations: Blue (#3B82F6)
- * - Schools and colleges: Purple (#A855F7)
- * - Hotels: Orange (#F97316)
- * - Restaurants: Yellow (#EAB308)
- * - Pharmacies: Pink (#EC4899)
- * - Parks: Green (#22C55E)
- * - Bus stations: Cyan (#06B6D4)
- * - Railway stations: Indigo (#6366F1)
- * - ATMs and banks: Teal (#14B8A6)
- * - Government offices: Dark blue (#1E40AF)
- * - Other places: Neutral gray (#6B7280)
+ * 24 Categories matching Reference Image 1 & User Specifications:
+ * Primary 8 visible buttons:
+ * - Restaurants, Cafes, Hotels, Hospitals, Schools, Police, ATMs, Petrol
+ * Secondary categories in More menu:
+ * - Colleges & Universities, Fire Stations, Banks & Financial, Pharmacies,
+ *   Supermarkets & Groceries, Shopping Centers & Malls, Parks & Recreation,
+ *   Gyms & Fitness Centers, Places of Worship, Railway Stations,
+ *   Bus Stations & Terminals, Parking, Government Offices, Public Toilets,
+ *   Libraries, EV Charging Stations
  */
 export const POI_CATEGORIES: POICategoryMeta[] = [
-  { id: 'hospitals', label: 'Hospitals & Clinics', osmQuery: 'hospital', osmClass: 'amenity', iconName: 'Activity', color: '#EF4444', emoji: '🏥' },
-  { id: 'police', label: 'Police Stations', osmQuery: 'police', osmClass: 'amenity', iconName: 'Shield', color: '#3B82F6', emoji: '👮' },
-  { id: 'schools', label: 'Schools & Colleges', osmQuery: 'school', osmClass: 'amenity', iconName: 'GraduationCap', color: '#A855F7', emoji: '🏫' },
-  { id: 'hotels', label: 'Hotels & Lodging', osmQuery: 'hotel', osmClass: 'tourism', iconName: 'Hotel', color: '#F97316', emoji: '🏨' },
-  { id: 'restaurants', label: 'Restaurants & Dining', osmQuery: 'restaurant', osmClass: 'amenity', iconName: 'Utensils', color: '#EAB308', emoji: '🍽️' },
-  { id: 'pharmacies', label: 'Pharmacies', osmQuery: 'pharmacy', osmClass: 'amenity', iconName: 'Cross', color: '#EC4899', emoji: '💊' },
-  { id: 'parks', label: 'Parks & Recreation', osmQuery: 'park', osmClass: 'leisure', iconName: 'Trees', color: '#22C55E', emoji: '🌳' },
-  { id: 'bus_stations', label: 'Bus Stations', osmQuery: 'bus_station', osmClass: 'amenity', iconName: 'Bus', color: '#06B6D4', emoji: '🚌' },
-  { id: 'railway_stations', label: 'Railway Stations', osmQuery: 'station', osmClass: 'railway', iconName: 'Train', color: '#6366F1', emoji: '🚆' },
-  { id: 'atms', label: 'ATMs & Banks', osmQuery: 'bank', osmClass: 'amenity', iconName: 'Landmark', color: '#14B8A6', emoji: '🏧' },
-  { id: 'government', label: 'Government Offices', osmQuery: 'townhall', osmClass: 'amenity', iconName: 'Building', color: '#1E40AF', emoji: '🏛️' },
-  { id: 'other', label: 'Other Places', osmQuery: 'point_of_interest', osmClass: 'historic', iconName: 'MapPin', color: '#6B7280', emoji: '📍' },
+  // Primary 8 Buttons (Reference Image 1)
+  { id: 'restaurants', label: 'Restaurants', osmQuery: 'restaurant', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'restaurant', iconName: 'Utensils', color: '#F59E0B', emoji: '🍴' },
+  { id: 'cafes', label: 'Cafes', osmQuery: 'cafe', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'cafe', iconName: 'Coffee', color: '#D97706', emoji: '☕' },
+  { id: 'hotels', label: 'Hotels', osmQuery: 'hotel', osmClass: 'tourism', osmKey: 'tourism', osmVal: 'hotel', iconName: 'Hotel', color: '#EC4899', emoji: '🏨' },
+  { id: 'hospitals', label: 'Hospitals', osmQuery: 'hospital', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'hospital', iconName: 'Activity', color: '#EF4444', emoji: '🏥' },
+  { id: 'schools', label: 'Schools', osmQuery: 'school', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'school', iconName: 'GraduationCap', color: '#8B5CF6', emoji: '🎓' },
+  { id: 'police', label: 'Police', osmQuery: 'police', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'police', iconName: 'Shield', color: '#3B82F6', emoji: '🛡️' },
+  { id: 'atms', label: 'ATMs', osmQuery: 'atm', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'atm', iconName: 'CreditCard', color: '#10B981', emoji: '💳' },
+  { id: 'petrol', label: 'Petrol', osmQuery: 'fuel', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'fuel', iconName: 'Fuel', color: '#F97316', emoji: '⛽' },
+
+  // Secondary categories (More Menu)
+  { id: 'colleges', label: 'Colleges & Universities', osmQuery: 'college', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'university', iconName: 'BookOpen', color: '#6366F1', emoji: '🏛️' },
+  { id: 'fire_stations', label: 'Fire Stations', osmQuery: 'fire_station', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'fire_station', iconName: 'Flame', color: '#DC2626', emoji: '🚒' },
+  { id: 'banks', label: 'Banks & Financial', osmQuery: 'bank', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'bank', iconName: 'Landmark', color: '#059669', emoji: '🏦' },
+  { id: 'pharmacies', label: 'Pharmacies', osmQuery: 'pharmacy', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'pharmacy', iconName: 'Cross', color: '#F43F5E', emoji: '💊' },
+  { id: 'supermarkets', label: 'Supermarkets & Groceries', osmQuery: 'supermarket', osmClass: 'shop', osmKey: 'shop', osmVal: 'supermarket', iconName: 'ShoppingCart', color: '#14B8A6', emoji: '🛒' },
+  { id: 'shopping', label: 'Shopping Centers & Malls', osmQuery: 'mall', osmClass: 'shop', osmKey: 'shop', osmVal: 'mall', iconName: 'ShoppingBag', color: '#A855F7', emoji: '🛍️' },
+  { id: 'parks', label: 'Parks & Recreation', osmQuery: 'park', osmClass: 'leisure', osmKey: 'leisure', osmVal: 'park', iconName: 'Trees', color: '#22C55E', emoji: '🌳' },
+  { id: 'gyms', label: 'Gyms & Fitness Centers', osmQuery: 'fitness_centre', osmClass: 'leisure', osmKey: 'leisure', osmVal: 'fitness_centre', iconName: 'Dumbbell', color: '#06B6D4', emoji: '🏋️' },
+  { id: 'worship', label: 'Places of Worship', osmQuery: 'place_of_worship', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'place_of_worship', iconName: 'Church', color: '#84CC16', emoji: '🕌' },
+  { id: 'railway_stations', label: 'Railway Stations', osmQuery: 'station', osmClass: 'railway', osmKey: 'railway', osmVal: 'station', iconName: 'Train', color: '#4F46E5', emoji: '🚆' },
+  { id: 'bus_stations', label: 'Bus Stations & Terminals', osmQuery: 'bus_station', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'bus_station', iconName: 'Bus', color: '#0EA5E9', emoji: '🚌' },
+  { id: 'parking', label: 'Parking', osmQuery: 'parking', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'parking', iconName: 'SquareParking', color: '#64748B', emoji: '🅿️' },
+  { id: 'government', label: 'Government Offices', osmQuery: 'townhall', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'townhall', iconName: 'Building2', color: '#1E3A8A', emoji: '🏛️' },
+  { id: 'toilets', label: 'Public Toilets', osmQuery: 'toilets', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'toilets', iconName: 'Bath', color: '#0284C7', emoji: '🚻' },
+  { id: 'libraries', label: 'Libraries', osmQuery: 'library', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'library', iconName: 'Book', color: '#7C3AED', emoji: '📚' },
+  { id: 'ev_charging', label: 'EV Charging Stations', osmQuery: 'charging_station', osmClass: 'amenity', osmKey: 'amenity', osmVal: 'charging_station', iconName: 'Zap', color: '#10B981', emoji: '⚡' },
+  { id: 'other', label: 'Other Places', osmQuery: 'point_of_interest', osmClass: 'historic', osmKey: 'amenity', osmVal: 'point_of_interest', iconName: 'MapPin', color: '#6B7280', emoji: '📍' },
+];
+
+export const PRIMARY_POI_CATEGORY_IDS: POICategory[] = [
+  'restaurants',
+  'cafes',
+  'hotels',
+  'hospitals',
+  'schools',
+  'police',
+  'atms',
+  'petrol',
+];
+
+export const SECONDARY_POI_CATEGORY_IDS: POICategory[] = [
+  'colleges',
+  'fire_stations',
+  'banks',
+  'pharmacies',
+  'supermarkets',
+  'shopping',
+  'parks',
+  'gyms',
+  'worship',
+  'railway_stations',
+  'bus_stations',
+  'parking',
+  'government',
+  'toilets',
+  'libraries',
+  'ev_charging',
 ];
 
 export function getCategoryMeta(cat: POICategory): POICategoryMeta {
@@ -300,11 +344,92 @@ export async function searchNearbyPOIs(
       });
     }
 
+    // Overpass API fallback if Nominatim returned 0 results
+    if (places.length === 0) {
+      const overpassPlaces = await fetchOverpassPOIs(categoryMeta, latitude, longitude, radiusKm, signal);
+      if (overpassPlaces.length > 0) {
+        places.push(...overpassPlaces);
+      }
+    }
+
     places.sort((a, b) => a.distanceKm - b.distanceKm);
     poiSearchCache.set(cacheKey, places);
     return places;
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') throw err;
+    // Attempt Overpass on Nominatim network failure
+    try {
+      return await fetchOverpassPOIs(categoryMeta, latitude, longitude, radiusKm, signal);
+    } catch {
+      return [];
+    }
+  }
+}
+
+/**
+ * Secondary OpenStreetMap provider: Overpass API for deep GIS coverage
+ */
+async function fetchOverpassPOIs(
+  categoryMeta: POICategoryMeta,
+  latitude: number,
+  longitude: number,
+  radiusKm: number,
+  signal?: AbortSignal
+): Promise<POIPlace[]> {
+  try {
+    const radiusMeters = Math.min(Math.round(radiusKm * 1000), 10000);
+    const key = categoryMeta.osmKey || 'amenity';
+    const val = categoryMeta.osmVal || categoryMeta.osmQuery;
+    const overpassQuery = `[out:json][timeout:8];(node["${key}"="${val}"](around:${radiusMeters},${latitude},${longitude});way["${key}"="${val}"](around:${radiusMeters},${latitude},${longitude}););out center 25;`;
+    const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`, { signal });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data.elements || !Array.isArray(data.elements)) return [];
+
+    const places: POIPlace[] = [];
+    const seen = new Set<string>();
+
+    for (const el of data.elements) {
+      const pLat = el.lat ?? el.center?.lat;
+      const pLng = el.lon ?? el.center?.lon;
+      if (typeof pLat !== 'number' || typeof pLng !== 'number') continue;
+
+      const dist = calculateDistanceKm(latitude, longitude, pLat, pLng);
+      if (dist > radiusKm * 1.1) continue;
+
+      const tags = el.tags || {};
+      const name = tags.name || tags['name:en'] || `${categoryMeta.label}`;
+      if (seen.has(name.toLowerCase())) continue;
+      seen.add(name.toLowerCase());
+
+      const phone = tags.phone || tags['contact:phone'] || undefined;
+      const website = tags.website || tags['contact:website'] || undefined;
+      const openingHours = tags.opening_hours || undefined;
+      const operator = tags.operator || undefined;
+
+      places.push({
+        id: `overpass_${el.id}`,
+        name,
+        category: categoryMeta.id,
+        categoryLabel: categoryMeta.label,
+        latitude: pLat,
+        longitude: pLng,
+        distanceKm: dist,
+        address: tags['addr:full'] || [tags['addr:street'], tags['addr:city']].filter(Boolean).join(', ') || undefined,
+        osmType: el.type,
+        osmId: el.id,
+        verified: true,
+        phone,
+        website,
+        openingHours,
+        operator,
+        extratags: tags,
+      });
+    }
+
+    places.sort((a, b) => a.distanceKm - b.distanceKm);
+    return places;
+  } catch {
     return [];
   }
 }

@@ -107,18 +107,49 @@ export interface WeatherApiResponse {
 }
 
 export type POICategory =
+  | 'restaurants'
+  | 'cafes'
+  | 'hotels'
   | 'hospitals'
+  | 'schools'
+  | 'colleges'
+  | 'police'
+  | 'fire_stations'
+  | 'atms'
+  | 'banks'
+  | 'petrol'
+  | 'pharmacies'
+  | 'supermarkets'
+  | 'shopping'
+  | 'parks'
+  | 'gyms'
+  | 'worship'
+  | 'railway_stations'
+  | 'bus_stations'
+  | 'parking'
+  | 'government'
+  | 'toilets'
+  | 'libraries'
+  | 'ev_charging'
+  | 'other';
+
+export type MapLayerId =
+  | 'weather'
+  | 'traffic'
+  | 'transit'
+  | 'civic_incidents'
+  | 'hospitals'
+  | 'fire'
   | 'police'
   | 'schools'
-  | 'hotels'
-  | 'restaurants'
-  | 'pharmacies'
   | 'parks'
-  | 'bus_stations'
-  | 'railway_stations'
-  | 'atms'
-  | 'government'
-  | 'other';
+  | 'roadwork'
+  | 'parking'
+  | 'waste'
+  | 'water'
+  | 'power'
+  | 'air_quality'
+  | 'alerts';
 
 export interface PlacePhoto {
   url: string;

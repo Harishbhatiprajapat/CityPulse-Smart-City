@@ -29,6 +29,18 @@ export function getTrafficProviderConfig(customKey?: string): TrafficProviderCon
   };
 }
 
+// In-memory cache for TomTom traffic incidents to prevent API quota depletion
+interface TrafficCacheRecord {
+  data: { incidents: TrafficIncident[]; notice?: string };
+  timestamp: number;
+}
+const trafficCache = new Map<string, TrafficCacheRecord>();
+const TRAFFIC_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
+export function clearTrafficCache() {
+  trafficCache.clear();
+}
+
 /**
  * Fetches real traffic incidents from TomTom API if key is available
  */
@@ -48,6 +60,12 @@ export async function fetchLiveTrafficIncidents(
       notice:
         'Live TomTom traffic incidents require an API key. Add VITE_TOMTOM_API_KEY in Settings or your .env file to view live road probe incidents and real-time flow tiles.',
     };
+  }
+
+  const cacheKey = `${lat.toFixed(3)}_${lng.toFixed(3)}_${radiusKm}_${key.trim()}`;
+  const cached = trafficCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < TRAFFIC_TTL_MS) {
+    return cached.data;
   }
 
   // Calculate bounding box in minLon,minLat,maxLon,maxLat
@@ -117,7 +135,9 @@ export async function fetchLiveTrafficIncidents(
       };
     });
 
-    return { incidents: formatted };
+    const result = { incidents: formatted };
+    trafficCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    return result;
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') throw err;
     return {

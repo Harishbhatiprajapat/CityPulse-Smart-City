@@ -1,5 +1,17 @@
 import type { CivicAlert, ComprehensiveWeather, AirQualityData } from '@/types';
 
+// In-memory cache for official NWS bulletins
+interface AlertCacheRecord {
+  features: unknown[];
+  timestamp: number;
+}
+const nwsAlertCache = new Map<string, AlertCacheRecord>();
+const NWS_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+export function clearAlertCache() {
+  nwsAlertCache.clear();
+}
+
 /**
  * Fetches real active official civic and emergency alerts for a location.
  * Uses NWS for US coordinates, and Open-Meteo meteorological anomaly triggers internationally.
@@ -13,43 +25,54 @@ export async function fetchCivicAlerts(
 ): Promise<CivicAlert[]> {
   const alerts: CivicAlert[] = [];
 
-  // 1. Try US National Weather Service official alerts API
+  // 1. Try US National Weather Service official alerts API with caching
   try {
-    const nwsUrl = `https://api.weather.gov/alerts/active?point=${lat.toFixed(4)},${lng.toFixed(4)}`;
-    const res = await fetch(nwsUrl, {
-      headers: {
-        'User-Agent': 'CityPulse-Civic-Intelligence (contact@citypulse.org)',
-        Accept: 'application/geo+json',
-      },
-      signal,
-    });
+    const pointKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+    let features: unknown[] = [];
+    const cached = nwsAlertCache.get(pointKey);
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data.features && Array.isArray(data.features)) {
-        for (const feat of data.features) {
-          const p = feat.properties || {};
-          let severity: CivicAlert['severity'] = 'advisory';
-          const sevStr = (p.severity || '').toLowerCase();
-          if (sevStr === 'extreme' || sevStr === 'severe') severity = 'critical';
-          else if (sevStr === 'moderate') severity = 'warning';
-          else if (p.event?.toLowerCase().includes('watch')) severity = 'watch';
+    if (cached && Date.now() - cached.timestamp < NWS_TTL_MS) {
+      features = cached.features;
+    } else {
+      const nwsUrl = `https://api.weather.gov/alerts/active?point=${pointKey}`;
+      const res = await fetch(nwsUrl, {
+        headers: {
+          'User-Agent': 'CityPulse-Civic-Intelligence (contact@citypulse.org)',
+          Accept: 'application/geo+json',
+        },
+        signal,
+      });
 
-          alerts.push({
-            id: feat.id || `nws_${p.sent || Date.now()}`,
-            event: p.event || 'Official Public Alert',
-            headline: p.headline || p.event || 'Public Safety Alert',
-            description: p.description || p.instruction || p.headline || '',
-            severity,
-            effective: p.effective || p.sent || new Date().toISOString(),
-            expires: p.expires || p.ends || undefined,
-            source: p.senderName || 'National Weather Service',
-            areaDesc: p.areaDesc || 'Affected Municipal Area',
-            category: 'weather',
-            coordinates: { lat, lng },
-          });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.features && Array.isArray(data.features)) {
+          features = data.features;
+          nwsAlertCache.set(pointKey, { features, timestamp: Date.now() });
         }
       }
+    }
+
+    for (const feat of features as Array<{ id?: string; properties?: Record<string, string> }>) {
+      const p = feat.properties || {};
+      let severity: CivicAlert['severity'] = 'advisory';
+      const sevStr = (p.severity || '').toLowerCase();
+      if (sevStr === 'extreme' || sevStr === 'severe') severity = 'critical';
+      else if (sevStr === 'moderate') severity = 'warning';
+      else if (p.event?.toLowerCase().includes('watch')) severity = 'watch';
+
+      alerts.push({
+        id: feat.id || `nws_${p.sent || Date.now()}`,
+        event: p.event || 'Official Public Alert',
+        headline: p.headline || p.event || 'Public Safety Alert',
+        description: p.description || p.instruction || p.headline || '',
+        severity,
+        effective: p.effective || p.sent || new Date().toISOString(),
+        expires: p.expires || p.ends || undefined,
+        source: p.senderName || 'National Weather Service',
+        areaDesc: p.areaDesc || 'Affected Municipal Area',
+        category: 'weather',
+        coordinates: { lat, lng },
+      });
     }
   } catch {
     // International location or NWS unavailable

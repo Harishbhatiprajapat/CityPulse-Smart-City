@@ -29,11 +29,11 @@ body {
 /* Leaflet map customizations */
 .leaflet-container {
   font-family: 'Inter', system-ui, sans-serif;
-  background: #e2e8f0;
+  background: #f8fafc;
 }
 
 .dark .leaflet-container {
-  background: #0B1220;
+  background: #f1f5f9;
 }
 
 .cp-map-marker {

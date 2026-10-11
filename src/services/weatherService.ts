@@ -56,6 +56,21 @@ function getAQICategory(aqi: number): {
   return { category: 'Hazardous', categoryColor: '#7F1D1D' };
 }
 
+// In-memory TTL caches for resilient performance
+interface CacheRecord<T> {
+  data: T;
+  timestamp: number;
+}
+const weatherCache = new Map<string, CacheRecord<ComprehensiveWeather>>();
+const aqiCache = new Map<string, CacheRecord<AirQualityData>>();
+const WEATHER_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const AQI_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+export function clearWeatherCaches() {
+  weatherCache.clear();
+  aqiCache.clear();
+}
+
 /**
  * Fetches real weather and 7-day forecast from Open-Meteo
  */
@@ -64,6 +79,11 @@ export async function fetchComprehensiveWeather(
   lng: number,
   signal?: AbortSignal
 ): Promise<ComprehensiveWeather> {
+  const cacheKey = `${lat.toFixed(3)}_${lng.toFixed(3)}`;
+  const cached = weatherCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < WEATHER_TTL_MS) {
+    return cached.data;
+  }
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,surface_pressure,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&forecast_days=7&timezone=auto`;
 
   const res = await fetch(url, { signal });
@@ -95,7 +115,7 @@ export async function fetchComprehensiveWeather(
 
   const wCode = c.weather_code ?? 0;
 
-  return {
+  const result: ComprehensiveWeather = {
     temperature: Math.round(c.temperature_2m ?? 0),
     apparentTemperature: Math.round(c.apparent_temperature ?? c.temperature_2m ?? 0),
     humidity: Math.round(c.relative_humidity_2m ?? 0),
@@ -110,6 +130,9 @@ export async function fetchComprehensiveWeather(
     daily: dailyList,
     timestamp: new Date().toISOString(),
   };
+
+  weatherCache.set(cacheKey, { data: result, timestamp: Date.now() });
+  return result;
 }
 
 /**
@@ -120,6 +143,12 @@ export async function fetchAirQuality(
   lng: number,
   signal?: AbortSignal
 ): Promise<AirQualityData> {
+  const cacheKey = `${lat.toFixed(3)}_${lng.toFixed(3)}`;
+  const cached = aqiCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < AQI_TTL_MS) {
+    return cached.data;
+  }
+
   const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=european_aqi,us_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone&timezone=auto`;
 
   const res = await fetch(url, { signal });
@@ -132,7 +161,7 @@ export async function fetchAirQuality(
   const usAqi = Math.round(c.us_aqi ?? 35);
   const { category, categoryColor } = getAQICategory(usAqi);
 
-  return {
+  const result: AirQualityData = {
     aqi: usAqi,
     category,
     categoryColor,
@@ -145,6 +174,9 @@ export async function fetchAirQuality(
     europeanAqi: c.european_aqi ? Math.round(c.european_aqi) : undefined,
     timestamp: c.time || new Date().toISOString(),
   };
+
+  aqiCache.set(cacheKey, { data: result, timestamp: Date.now() });
+  return result;
 }
 
 /**
@@ -154,20 +186,34 @@ export async function fetchLiveCityData(city: CityInfo): Promise<WeatherApiRespo
   const lat = city.latitude;
   const lng = city.longitude;
 
-  // Multi-zone offsets around city center with authentic zone names
+  // Multi-zone offsets around city center with authentic zone names and realistic statuses
   const isJaipur = city.name.toLowerCase() === 'jaipur';
-  const zoneOffsets = isJaipur
+  const zoneOffsets: {
+    dLat: number;
+    dLng: number;
+    name: string;
+    baseDelay: number;
+    baseComplaints: number;
+    forceStatus?: ZoneStatus;
+  }[] = isJaipur
     ? [
-        { dLat: 0.0, dLng: 0.0, name: 'Central Walled City / MI Road' },
-        { dLat: 0.012, dLng: -0.016, name: 'Vaishali Nagar / West Corridor' },
-        { dLat: -0.016, dLng: 0.015, name: 'Malviya Nagar / South-East Hub' },
-        { dLat: -0.014, dLng: -0.018, name: 'Mansarovar / Civic District' },
+        { dLat: 0.008, dLng: 0.035, name: 'Central Walled City & Johari Bazaar', baseDelay: 14, baseComplaints: 24, forceStatus: 'alert' },
+        { dLat: 0.002, dLng: -0.045, name: 'Vaishali Nagar / West Corridor', baseDelay: 2, baseComplaints: 5, forceStatus: 'normal' },
+        { dLat: -0.058, dLng: 0.032, name: 'Malviya Nagar & JLN Marg Corridor', baseDelay: 9, baseComplaints: 14, forceStatus: 'watch' },
+        { dLat: -0.048, dLng: -0.026, name: 'Mansarovar / Civic District', baseDelay: 3, baseComplaints: 7, forceStatus: 'normal' },
+        { dLat: -0.004, dLng: 0.008, name: 'C-Scheme & Civil Lines Secretariat', baseDelay: 1, baseComplaints: 4, forceStatus: 'normal' },
+        { dLat: 0.052, dLng: -0.009, name: 'Vidhyadhar Nagar & Sikar Road', baseDelay: 8, baseComplaints: 12, forceStatus: 'watch' },
+        { dLat: -0.098, dLng: 0.048, name: 'Jagatpura & Sitapura Industrial Hub', baseDelay: 4, baseComplaints: 6, forceStatus: 'normal' },
+        { dLat: 0.012, dLng: 0.002, name: 'Bani Park / Railway Junction Precinct', baseDelay: 11, baseComplaints: 17, forceStatus: 'watch' },
       ]
     : [
-        { dLat: 0.0, dLng: 0.0, name: 'Central Business District' },
-        { dLat: 0.015, dLng: 0.012, name: 'East District Corridor' },
-        { dLat: -0.015, dLng: -0.012, name: 'Westside Transit Hub' },
-        { dLat: 0.018, dLng: -0.014, name: 'North Sector Residential' },
+        { dLat: 0.0, dLng: 0.0, name: 'Downtown Central Business District', baseDelay: 11, baseComplaints: 18, forceStatus: 'watch' },
+        { dLat: 0.035, dLng: 0.028, name: 'North Corridor & University Sector', baseDelay: 2, baseComplaints: 5, forceStatus: 'normal' },
+        { dLat: -0.038, dLng: -0.032, name: 'Westside Transit & Rail Hub', baseDelay: 15, baseComplaints: 22, forceStatus: 'alert' },
+        { dLat: 0.042, dLng: -0.035, name: 'Northwest Residential Heights', baseDelay: 3, baseComplaints: 6, forceStatus: 'normal' },
+        { dLat: -0.045, dLng: 0.038, name: 'South Tech Corridor & Airport Link', baseDelay: 8, baseComplaints: 12, forceStatus: 'watch' },
+        { dLat: 0.015, dLng: 0.052, name: 'East Waterfront / Riverbank District', baseDelay: 1, baseComplaints: 4, forceStatus: 'normal' },
+        { dLat: -0.022, dLng: 0.015, name: 'Civic Center & Government Plaza', baseDelay: 3, baseComplaints: 5, forceStatus: 'normal' },
       ];
 
   const now = new Date();
@@ -195,12 +241,15 @@ export async function fetchLiveCityData(city: CityInfo): Promise<WeatherApiRespo
     // Weather impact calculation
     const weatherSeverity =
       code >= 95 ? 40 : code >= 80 ? 25 : code >= 61 ? 15 : code >= 45 ? 10 : 0;
-    const transitDelay = Math.min(25, Math.round(precip * 2.5 + wind * 0.15 + (weatherSeverity > 25 ? 6 : 0)));
-    const complaintCount = Math.min(60, Math.round(4 + precip * 4 + wind * 0.2 + weatherSeverity * 0.3));
-    const severityScore = Math.min(100, Math.max(8, Math.round(weatherSeverity * 0.5 + transitDelay * 1.4 + complaintCount * 0.5)));
+    const transitDelay = Math.max(zone.baseDelay, Math.min(30, Math.round(zone.baseDelay + precip * 2.5 + wind * 0.15)));
+    const complaintCount = Math.max(zone.baseComplaints, Math.min(60, Math.round(zone.baseComplaints + precip * 4 + wind * 0.2)));
+    const severityScore = zone.forceStatus === 'alert'
+      ? Math.max(72, Math.min(94, Math.round(45 + transitDelay * 1.5 + complaintCount * 0.6)))
+      : zone.forceStatus === 'watch'
+      ? Math.max(42, Math.min(64, Math.round(25 + transitDelay * 1.3 + complaintCount * 0.5)))
+      : Math.max(12, Math.min(35, Math.round(10 + transitDelay * 1.0 + complaintCount * 0.4)));
 
-    const status: ZoneStatus =
-      severityScore >= 70 ? 'alert' : severityScore >= 40 ? 'watch' : 'normal';
+    const status: ZoneStatus = zone.forceStatus ?? (severityScore >= 68 ? 'alert' : severityScore >= 38 ? 'watch' : 'normal');
 
     const hTime: string[] = hourly.time || [];
     const hPrecip: number[] = hourly.precipitation || [];
